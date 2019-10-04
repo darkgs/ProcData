@@ -19,7 +19,7 @@ class TaskNode(object):
             assert('Should not reach here' and False)
 
         args = self._func_param.get('args', ())
-        kwargs = self._func_param.get('kwargs', {})
+        kwargs = self._func_param.get('kwargs', {}).copy()
 
         assert('prev_outputs' not in kwargs)
         kwargs['prev_outputs'] = prev_outputs

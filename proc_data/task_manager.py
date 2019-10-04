@@ -17,54 +17,37 @@ class TaskMemory(object):
         if not os.path.exists(cache_dir):
             os.system('mkdir -p {}'.format(cache_dir))
 
-        # Cache information
-        self.load_cache_info()
-
-    def get_cache_info_path(self):
-        return os.path.join(self._cache_dir, 'cache.p_info')
-
-    def load_cache_info(self):
-        cache_info_path = self.get_cache_info_path()
-
-        if not os.path.exists(cache_info_path):
-            self._cache_info = {
-                'signitures': {},
-            }
-            return
-
-        with open(cache_info_path, 'rb') as f_info:
-            self._cache_info = pickle.load(f_info)
-
-    def update_cache_info(self, node):
-        # update signiture of the node
-        self._cache_info['signitures'][node.name] = self.get_node_signiture(node)
-
-        # update cache info file
-        cache_info_path = self.get_cache_info_path()
-        with open(cache_info_path, 'wb') as f_info:
-            pickle.dump(self._cache_info, f_info)
-    
-    def remove_cache_info(self, node):
-        if node.name in self._cache_info['signitures']:
-            del self._cache_info['signitures'][node.name]
-
-        # update cache info file
-        cache_info_path = self.get_cache_info_path()
-        with open(cache_info_path, 'wb') as f_info:
-            pickle.dump(self._cache_info, f_info)
-
     def is_output_loaded(self, node):
         return node.name in self._outputs
 
+    def get_node_func_signiture(self, node):
+        return hashlib.md5(inspect.getsource(node._func).encode('utf-8')).hexdigest()
+
+    def get_node_param_signiture(self, node):
+        def param2str(param):
+            if isinstance(param, dict):
+                return '_'.join([str(key) + '-' + param2str(param[key]) for key in sorted(param.keys())])
+            elif isinstance(param, list):
+                return '_'.join([str(val) for val in param])
+            else:
+                return str(param)
+
+        args = node._func_param.get('args', [])
+        kwargs = node._func_param.get('kwargs', {})
+
+        param_str = param2str(args) + '__' + param2str(kwargs)
+        return hashlib.md5(param_str.encode('utf-8')).hexdigest()
+
     def get_cache_path(self, node):
-        return os.path.join(self._cache_dir, node.name + '.p')
+        cache_path = os.path.join(self._cache_dir, node.name)
+        cache_path = os.path.join(cache_path, self.get_node_func_signiture(node))
+        cache_path = os.path.join(cache_path, self.get_node_param_signiture(node))
+        cache_path += '.p'
+        return cache_path
 
     def is_valid_cache(self, node):
         cache_path = self.get_cache_path(node)
         if not os.path.exists(cache_path):
-            return False
-
-        if self._cache_info['signitures'].get(node.name, '') != self.get_node_signiture(node):
             return False
 
         is_valid = True
@@ -81,8 +64,6 @@ class TaskMemory(object):
         if os.path.exists(cache_path):
             os.system('rm -rf {}'.format(cache_path))
 
-        self.remove_cache_info(node)
-
     def load_cache(self, node):
         if not self.is_valid_cache(node):
             self.remove_cache(node)
@@ -95,17 +76,16 @@ class TaskMemory(object):
 
         return True
 
-    def get_node_signiture(self, node):
-        return hashlib.md5(inspect.getsource(node._func).encode('utf-8')).hexdigest()
-
     def store_output(self, node, output):
         cache_path = self.get_cache_path(node)
+
+        cache_dir_path = os.path.dirname(cache_path)
+        if not os.path.exists(cache_dir_path):
+            os.system('mkdir -p {}'.format(cache_dir_path))
 
         with open(cache_path, 'wb') as f_cache:
             pickle.dump(output, f_cache)
         
-        self.update_cache_info(node)
-
         self._outputs[node.name] = output
 
 
