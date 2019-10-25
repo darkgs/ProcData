@@ -2,19 +2,21 @@
 from proc_data.task_node import TaskNode
 from proc_data.task_manager import TaskManager
 
-def foo1(*args, **kwargs):
+def foo1(tm, *args, **kwargs):
+    print(tm)
     print('Do task {}!'.format(args[0]))
 
     return args[0]
 
-def foo2(*args, **kwargs):
+def foo2(tm, *args, **kwargs):
     print('Do task {}!'.format(args[0]))
 
     return args[0]
 
-def foo3(*args, **kwargs):
-    print('Output of t1: {}'.format(kwargs['prev_outputs']['task1']))
-    print('Output of t2: {}'.format(kwargs['prev_outputs']['task2']))
+def foo3(tm, *args, **kwargs):
+    prev_outputs = tm.get_prev_outputs()
+    print('Output of t1: {}'.format(prev_outputs['task1']))
+    print('Output of t2: {}'.format(prev_outputs['task2']))
 
     print('Do task {}!'.format(args[0]))
     return args[0]

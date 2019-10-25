@@ -17,31 +17,16 @@ class TaskMemory(object):
         if not os.path.exists(cache_dir):
             os.system('mkdir -p {}'.format(cache_dir))
 
+    def get_prev_outputs(self):
+        return self._outputs
+
     def is_output_loaded(self, node):
         return node.name in self._outputs
 
-    def get_node_func_signiture(self, node):
-        return hashlib.md5(inspect.getsource(node._func).encode('utf-8')).hexdigest()
-
-    def get_node_param_signiture(self, node):
-        def param2str(param):
-            if isinstance(param, dict):
-                return '_'.join([str(key) + '-' + param2str(param[key]) for key in sorted(param.keys())])
-            elif isinstance(param, list):
-                return '_'.join([str(val) for val in param])
-            else:
-                return str(param)
-
-        args = node._func_param.get('args', [])
-        kwargs = node._func_param.get('kwargs', {})
-
-        param_str = param2str(args) + '__' + param2str(kwargs)
-        return hashlib.md5(param_str.encode('utf-8')).hexdigest()
-
     def get_cache_path(self, node):
         cache_path = os.path.join(self._cache_dir, node.name)
-        cache_path = os.path.join(cache_path, self.get_node_func_signiture(node))
-        cache_path = os.path.join(cache_path, self.get_node_param_signiture(node))
+        cache_path = os.path.join(cache_path, node.get_func_signiture())
+        cache_path = os.path.join(cache_path, node.get_param_signiture())
         cache_path += '.p'
         return cache_path
 
@@ -104,7 +89,7 @@ class TaskManager(object):
             # An undependent node must exist
             assert(next_node)
 
-            output = next_node(self._task_memory._outputs)
+            output = next_node(self._task_memory)
             self._task_memory.store_output(next_node, output)
 
             del self._be_executed[next_node.name]

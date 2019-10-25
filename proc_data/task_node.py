@@ -1,4 +1,6 @@
 
+import inspect
+import hashlib
 
 class TaskNode(object):
     def __init__(self, name, prev_nodes, func, func_param):
@@ -8,23 +10,39 @@ class TaskNode(object):
         self._func = func
         self._func_param = func_param
 
+    def get_func_signiture(self):
+        prev_nodes_str = '_'.join(sorted([node.name for node in self.prev_nodes]))
+        func_str = inspect.getsource(self._func)
+
+        hash_key = prev_nodes_str + '__' + func_str
+
+        return hashlib.md5(hash_key.encode('utf-8')).hexdigest()
+
+    def get_param_signiture(self):
+        def param2str(param):
+            if isinstance(param, dict):
+                return '_'.join([str(key) + '-' + param2str(param[key]) \
+                        for key in sorted(param.keys())])
+            elif isinstance(param, list):
+                return '_'.join([str(val) for val in param])
+            else:
+                return str(param)
+
+        args = self._func_param.get('args', [])
+        kwargs = self._func_param.get('kwargs', {})
+
+        hash_key = param2str(args) + '__' + param2str(kwargs)
+
+        return hashlib.md5(hash_key.encode('utf-8')).hexdigest()
+
     def __repr__(self):
         return self.name
 
-    def __call__(self, prev_outputs):
-        # check output of dependent nodes
-        for prev_node in self.prev_nodes:
-            if prev_node.name in prev_outputs:
-                continue
-            assert('Should not reach here' and False)
-
+    def __call__(self, tm):
         args = self._func_param.get('args', ())
         kwargs = self._func_param.get('kwargs', {}).copy()
 
-        assert('prev_outputs' not in kwargs)
-        kwargs['prev_outputs'] = prev_outputs
-
-        output = self._func(*args, **kwargs)
+        output = self._func(tm, *args, **kwargs)
 
         return output
 
